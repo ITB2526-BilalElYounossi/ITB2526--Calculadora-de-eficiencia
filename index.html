@@ -1,56 +1,1439 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITB Leaks - Auditoría Global de Gastos</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ITB Leaks · Calculadora d'Estalvi Energètic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg:        #080c0a;
+      --surface:   #0e1612;
+      --card:      #121d17;
+      --border:    #1e3028;
+      --green:     #2dff7a;
+      --green-dim: #1a9e4a;
+      --amber:     #f5c842;
+      --red:       #ff4d6d;
+      --blue:      #4dc9ff;
+      --text:      #d4eed9;
+      --muted:     #5a7a64;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    /* ── RESET ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      padding: 0 2rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0a1a10 0%, var(--bg) 100%);
+    }
+    .header-inner {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 0;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .logo {
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .logo-badge {
+      width: 40px; height: 40px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-head);
+      font-weight: 800; font-size: 18px;
+      color: var(--bg);
+    }
+    .logo-text { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--muted); font-weight: 400; font-size: .85rem; display: block; }
+    .header-status {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .75rem; color: var(--muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    /* ── NAV TABS ── */
+    nav {
+      max-width: 1300px; margin: 0 auto;
+      display: flex; gap: 0;
+      overflow-x: auto;
+    }
+    nav button {
+      background: none; border: none;
+      padding: .75rem 1.5rem;
+      font-family: var(--font-mono); font-size: .8rem;
+      color: var(--muted); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color .2s, border-color .2s;
+    }
+    nav button.active, nav button:hover {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── SECTIONS ── */
+    .section { display: none; animation: fadeIn .3s ease; }
+    .section.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; } }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      margin-bottom: 2rem;
+    }
+    .section-header h1 {
+      font-family: var(--font-head);
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+    .section-header h1 span { color: var(--green); }
+    .section-header p {
+      margin-top: .5rem;
+      color: var(--muted); font-size: .85rem; line-height: 1.6;
+    }
+
+    /* ── KPI GRID ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s, transform .2s;
+    }
+    .kpi-card:hover { border-color: var(--green-dim); transform: translateY(-2px); }
+    .kpi-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.amber::before { background: var(--amber); }
+    .kpi-card.blue::before  { background: var(--blue); }
+    .kpi-card.red::before   { background: var(--red); }
+    .kpi-label {
+      font-size: .7rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .08em; margin-bottom: .5rem;
+    }
+    .kpi-value {
+      font-family: var(--font-head); font-size: 2rem;
+      font-weight: 800; color: #fff; line-height: 1;
+    }
+    .kpi-unit { font-size: 1rem; color: var(--muted); margin-left: .25rem; }
+    .kpi-delta {
+      margin-top: .5rem; font-size: .75rem;
+    }
+    .kpi-delta.good { color: var(--green); }
+    .kpi-delta.bad  { color: var(--red); }
+    .kpi-icon {
+      position: absolute; right: 1.5rem; top: 1.5rem;
+      font-size: 1.5rem; opacity: .15;
+    }
+
+    /* ── GRID 2-col ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media(max-width: 600px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── CHART CARD ── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .chart-card h3 {
+      font-family: var(--font-head); font-size: 1rem;
+      font-weight: 700; color: #fff; margin-bottom: 1rem;
+    }
+    .chart-card h3 small {
+      font-family: var(--font-mono);
+      font-weight: 400; font-size: .7rem; color: var(--muted);
+      margin-left: .5rem;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+
+    /* ── TABLE ── */
+    .data-table {
+      width: 100%; border-collapse: collapse;
+      font-size: .8rem;
+    }
+    .data-table th {
+      text-align: left; padding: .6rem .8rem;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: .06em; font-size: .65rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: .6rem .8rem;
+      border-bottom: 1px solid rgba(30,48,40,.4);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(45,255,122,.03); }
+    .tag {
+      display: inline-block;
+      padding: .15rem .5rem; border-radius: 4px;
+      font-size: .65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .tag-green { background: rgba(45,255,122,.12); color: var(--green); }
+    .tag-amber { background: rgba(245,200,66,.12); color: var(--amber); }
+    .tag-red   { background: rgba(255,77,109,.12);  color: var(--red); }
+
+    /* ── CALCULATOR ── */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .calc-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .calc-card h3 {
+      font-family: var(--font-head); font-weight: 700;
+      font-size: .95rem; color: #fff; margin-bottom: 1.2rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .calc-card h3 .icon { font-size: 1.1rem; }
+    .form-row { margin-bottom: 1rem; }
+    .form-row label {
+      display: block; font-size: .7rem;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: .07em; margin-bottom: .35rem;
+    }
+    .form-row input, .form-row select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .6rem .8rem;
+      color: var(--text); font-family: var(--font-mono); font-size: .85rem;
+      transition: border-color .2s;
+    }
+    .form-row input:focus, .form-row select:focus {
+      outline: none; border-color: var(--green);
+    }
+    .form-row select option { background: var(--surface); }
+    .btn-calc {
+      width: 100%;
+      background: var(--green);
+      border: none; border-radius: 8px;
+      padding: .75rem 1rem;
+      font-family: var(--font-head); font-weight: 700; font-size: .9rem;
+      color: var(--bg); cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      margin-top: .5rem;
+    }
+    .btn-calc:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-calc:active { transform: none; }
+    .calc-result {
+      margin-top: 1rem;
+      background: rgba(45,255,122,.06);
+      border: 1px solid rgba(45,255,122,.2);
+      border-radius: 8px; padding: 1rem;
+      display: none;
+    }
+    .calc-result.show { display: block; }
+    .calc-result .res-label {
+      font-size: .7rem; color: var(--muted); margin-bottom: .25rem;
+    }
+    .calc-result .res-value {
+      font-family: var(--font-head); font-weight: 800;
+      font-size: 1.6rem; color: var(--green);
+    }
+    .calc-result .res-sub {
+      font-size: .75rem; color: var(--muted); margin-top: .25rem;
+    }
+
+    /* ── REDUCTION PLAN ── */
+    .plan-timeline {
+      position: relative;
+      padding-left: 2rem;
+    }
+    .plan-timeline::before {
+      content: '';
+      position: absolute; left: 8px; top: 0; bottom: 0;
+      width: 1px; background: var(--border);
+    }
+    .plan-year {
+      position: relative; margin-bottom: 2rem;
+    }
+    .plan-year::before {
+      content: '';
+      position: absolute; left: -1.6rem; top: .3rem;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 3px rgba(45,255,122,.2);
+    }
+    .plan-year h4 {
+      font-family: var(--font-head); font-weight: 700;
+      font-size: 1rem; color: var(--green); margin-bottom: .75rem;
+    }
+    .plan-actions { display: flex; flex-direction: column; gap: .5rem; }
+    .plan-action {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: .75rem 1rem;
+      display: flex; align-items: flex-start; gap: .75rem;
+    }
+    .plan-action .a-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+    .plan-action .a-title {
+      font-weight: 700; font-size: .85rem; color: #fff; margin-bottom: .2rem;
+    }
+    .plan-action .a-desc {
+      font-size: .75rem; color: var(--muted); line-height: 1.5;
+    }
+    .plan-action .a-saving {
+      margin-left: auto; text-align: right; flex-shrink: 0;
+      font-family: var(--font-head); font-weight: 700;
+      font-size: .9rem; color: var(--green); white-space: nowrap;
+    }
+
+    /* ── PROGRESS BARS ── */
+    .progress-row {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: .75rem;
+    }
+    .progress-label { font-size: .75rem; color: var(--muted); width: 130px; flex-shrink: 0; }
+    .progress-bar-wrap { flex: 1; background: var(--surface); border-radius: 99px; height: 8px; }
+    .progress-bar { height: 8px; border-radius: 99px; transition: width 1s ease; }
+    .progress-val { font-size: .75rem; color: #fff; width: 50px; text-align: right; flex-shrink: 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      font-size: .72rem; color: var(--muted);
+      margin-top: 3rem;
+    }
+    footer a { color: var(--green-dim); text-decoration: none; }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>ITB Leaks: Auditoría de Gastos 2024-2025</h1>
-        <p>Análisis integral de consumos, suministros y mantenimiento</p>
-    </header>
 
-    <main class="container">
-        <section class="grid-main-stats">
-            <div class="card stat-highlight">
-                <h3>Gasto Total Auditado</h3>
-                <strong id="global-total">5.965,75 €</strong>
-            </div>
-            <div class="card stat-highlight">
-                <h3>Producción Solar</h3>
-                <strong id="solar-yield">1.006,81 kWh</strong>
-            </div>
-            <div class="card stat-highlight">
-                <h3>Autoconsumo</h3>
-                <strong id="auto-rate">97,36%</strong>
-            </div>
-        </section>
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-badge">ITB</div>
+      <div class="logo-text">
+        Calculadora d'Estalvi Energètic
+        <span>ITB Leaks · Fase 3 · Curs 25/26</span>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      Dades actualitzades · Gener 2025
+    </div>
+  </div>
+  <nav>
+    <button class="active" onclick="showTab('dashboard')">📊 Dashboard</button>
+    <button onclick="showTab('energia')">⚡ Energia</button>
+    <button onclick="showTab('consumibles')">📦 Consumibles</button>
+    <button onclick="showTab('mobils')">📱 Mòbils a l'Aula</button>
+    <button onclick="showTab('calculadora')">🧮 Calculadora</button>
+    <button onclick="showTab('pla')">🎯 Pla Reducció 30%</button>
+  </nav>
+</header>
 
-        <section class="card">
-            <h2>📂 Distribución de Gastos por Partida</h2>
-            <div id="category-breakdown" class="category-grid">
+<!-- MAIN -->
+<main>
+
+  <!-- ═══════════════ DASHBOARD ═══════════════ -->
+  <section id="dashboard" class="section active">
+    <div class="section-header">
+      <h1>Diagnosi <span>Energètica ITB</span></h1>
+      <p>Resum de tots els indicadors extrets de les dades ITB Leaks · Projecte: Podem reduir un 30% l'impacte ambiental en 3 anys?</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-icon">⚡</div>
+        <div class="kpi-label">Producció Solar (Gener 2025)</div>
+        <div class="kpi-value">1.006<span class="kpi-unit">kWh</span></div>
+        <div class="kpi-delta good">↑ Autoconsum mitjà 97,36%</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-icon">💶</div>
+        <div class="kpi-label">Import Total Facturat</div>
+        <div class="kpi-value">5.965<span class="kpi-unit">€</span></div>
+        <div class="kpi-delta bad">↑ Manteniment + consumibles</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-icon">📱</div>
+        <div class="kpi-label">Mòbils a l'Aula (mitjana)</div>
+        <div class="kpi-value">32,9<span class="kpi-unit">%</span></div>
+        <div class="kpi-delta bad">⚠ Supera recomanació 20%</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-icon">🌿</div>
+        <div class="kpi-label">CO₂ Evitat (Gener 2025)</div>
+        <div class="kpi-value">0,49<span class="kpi-unit">t</span></div>
+        <div class="kpi-delta good">↑ Gràcies a autoconsum solar</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Producció Solar diària <small>kWh · Gener 2025</small></h3>
+        <div class="chart-wrap">
+          <canvas id="chartEnergia"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Taxa d'Autoconsum <small>% · Gener 2025</small></h3>
+        <div class="chart-wrap">
+          <canvas id="chartAutoconsum"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Distribució de Despesa per Categories <small>Factures ITB Leaks</small></h3>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chartDespeses"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Indicadors clau de sostenibilitat</h3>
+      <br>
+      <div class="progress-row">
+        <div class="progress-label">Autoconsum Solar</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:97%;background:var(--green)"></div></div>
+        <div class="progress-val">97,4%</div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-label">Mòbils a l'Aula</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:33%;background:var(--red)"></div></div>
+        <div class="progress-val">32,9%</div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-label">Obj. Reducció 30%</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:12%;background:var(--amber)"></div></div>
+        <div class="progress-val">12% assolit</div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-label">Dies Producció Màx.</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:45%;background:var(--blue)"></div></div>
+        <div class="progress-val">10/22 dies</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ENERGIA ═══════════════ -->
+  <section id="energia" class="section">
+    <div class="section-header">
+      <h1>Anàlisi <span>Solar Fotovoltaic</span></h1>
+      <p>Dades diàries de producció PV, taxa d'autoconsum i CO₂ evitat durant el mes de Gener 2025.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Produït</div>
+        <div class="kpi-value">1.006,8<span class="kpi-unit">kWh</span></div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Màxim Diari</div>
+        <div class="kpi-value">57,49<span class="kpi-unit">kWh</span></div>
+        <div class="kpi-delta good">14 de Gener</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Autoconsum Màxim</div>
+        <div class="kpi-value">100<span class="kpi-unit">%</span></div>
+        <div class="kpi-delta good">10 dies amb 100%</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">CO₂ Evitat Total</div>
+        <div class="kpi-value">0,49<span class="kpi-unit">t</span></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Producció PV i Autoconsum per dia <small>Gener 2025</small></h3>
+      <div class="chart-wrap" style="height:320px">
+        <canvas id="chartEnergiaDetall"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Detall diari · Gener 2025</h3>
+      <br>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="tablaEnergia">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>PV Yield (kWh)</th>
+              <th>Autoconsum (%)</th>
+              <th>CO₂ Evitat (t)</th>
+              <th>Estat</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CONSUMIBLES ═══════════════ -->
+  <section id="consumibles" class="section">
+    <div class="section-header">
+      <h1>Despeses <span>i Consumibles</span></h1>
+      <p>Factures i albarans extrets de ITB Leaks: manteniment, neteja, material d'oficina i telecomunicacions.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card amber">
+        <div class="kpi-label">Total Facturat</div>
+        <div class="kpi-value">5.965<span class="kpi-unit">€</span></div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Manteniment</div>
+        <div class="kpi-value">3.909<span class="kpi-unit">€</span></div>
+        <div class="kpi-delta bad">65,5% del total</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Material Oficina</div>
+        <div class="kpi-value">771<span class="kpi-unit">€</span></div>
+        <div class="kpi-delta bad">12,9% del total</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Neteja</div>
+        <div class="kpi-value">1.205<span class="kpi-unit">€</span></div>
+        <div class="kpi-delta bad">20,2% del total</div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Factures per categoria</h3>
+      <br>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="tablaFactures">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Producte / Servei</th>
+              <th>Categoria</th>
+              <th>Preu Unitari</th>
+              <th>Import Total</th>
+              <th>IVA</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Propostes de reducció de consum de consumibles</h3>
+      <br>
+      <div class="plan-actions">
+        <div class="plan-action">
+          <div class="a-icon">📄</div>
+          <div>
+            <div class="a-title">Digitalitzar documentació interna</div>
+            <div class="a-desc">Eliminar impressions innecessàries. Ús de signatures digitals i formularis en línia. Objectiu: reduir compra de paper un 50% en 1 any.</div>
+          </div>
+          <div class="a-saving">-50%</div>
+        </div>
+        <div class="plan-action">
+          <div class="a-icon">🧴</div>
+          <div>
+            <div class="a-title">Productes de neteja ecològics a granel</div>
+            <div class="a-desc">Substituir productes convencionals per productes ecològics certificats comprats a granel, reduint envasos i cost.</div>
+          </div>
+          <div class="a-saving">-30%</div>
+        </div>
+        <div class="plan-action">
+          <div class="a-icon">🔧</div>
+          <div>
+            <div class="a-title">Manteniment preventiu planificat</div>
+            <div class="a-desc">Implementar un pla de manteniment preventiu per evitar reparacions d'urgència (que suposen un sobrecoste del 40-60%).</div>
+          </div>
+          <div class="a-saving">-35%</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MÒBILS ═══════════════ -->
+  <section id="mobils" class="section">
+    <div class="section-header">
+      <h1>Mòbils <span>a l'Aula</span></h1>
+      <p>Indicador social: % d'alumnat amb el mòbil sobre la taula durant les sessions. La meta és estar per sota del 20%.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card red">
+        <div class="kpi-label">Mitjana Global</div>
+        <div class="kpi-value">32,9<span class="kpi-unit">%</span></div>
+        <div class="kpi-delta bad">⚠ 12,9 pts per sobre l'objectiu</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Millor Grup</div>
+        <div class="kpi-value">ASIXc1B</div>
+        <div class="kpi-delta good">Mitjana 19,8%</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Pitjor Registre</div>
+        <div class="kpi-value">80,6<span class="kpi-unit">%</span></div>
+        <div class="kpi-delta bad">ASIXc1C · 26 Nov</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Observacions</div>
+        <div class="kpi-value">34</div>
+        <div class="kpi-delta">3 grups · Nov-Gen</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>% Mòbils per Grup <small>Mitjana</small></h3>
+        <div class="chart-wrap">
+          <canvas id="chartMobilsGrup"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Evolució Temporal <small>Tots els grups</small></h3>
+        <div class="chart-wrap">
+          <canvas id="chartMobilsTemporal"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Registres detallats</h3>
+      <br>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="tablaMobils">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Grup</th>
+              <th>Mòbils a la taula</th>
+              <th>Alumnat</th>
+              <th>Percentatge</th>
+              <th>Estat</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CALCULADORA ═══════════════ -->
+  <section id="calculadora" class="section">
+    <div class="section-header">
+      <h1>🧮 Calculadora <span>d'Estalvi</span></h1>
+      <p>Eina interactiva per calcular projeccions de consum energètic, d'aigua, consumibles i productes de neteja amb estacionalitat.</p>
+    </div>
+
+    <div class="calc-grid">
+
+      <!-- ENERGIA -->
+      <div class="calc-card">
+        <h3><span class="icon">⚡</span> Consum Elèctric</h3>
+        <div class="form-row">
+          <label>Tipus de càlcul</label>
+          <select id="elec-tipus">
+            <option value="anual">Pròxim any complet</option>
+            <option value="curs">Curs escolar (Set–Jun)</option>
+            <option value="periode">Període personalitzat</option>
+          </select>
+        </div>
+        <div class="form-row" id="elec-mesos-wrap" style="display:none">
+          <label>Nombre de mesos</label>
+          <input type="number" id="elec-mesos" min="1" max="12" value="6" />
+        </div>
+        <div class="form-row">
+          <label>Consum base mensual (kWh)</label>
+          <input type="number" id="elec-base" value="1007" />
+        </div>
+        <div class="form-row">
+          <label>Estacionalitat hivern (%+)</label>
+          <input type="number" id="elec-hiv" value="20" />
+        </div>
+        <button class="btn-calc" onclick="calcElectric()">Calcular</button>
+        <div class="calc-result" id="res-elec">
+          <div class="res-label">Consum estimat</div>
+          <div class="res-value" id="res-elec-val">—</div>
+          <div class="res-sub" id="res-elec-sub"></div>
+        </div>
+      </div>
+
+      <!-- AIGUA -->
+      <div class="calc-card">
+        <h3><span class="icon">💧</span> Consum d'Aigua</h3>
+        <div class="form-row">
+          <label>Tipus de càlcul</label>
+          <select id="agua-tipus">
+            <option value="anual">Pròxim any complet</option>
+            <option value="curs">Curs escolar (Set–Jun)</option>
+            <option value="periode">Període personalitzat</option>
+          </select>
+        </div>
+        <div class="form-row" id="agua-mesos-wrap" style="display:none">
+          <label>Nombre de mesos</label>
+          <input type="number" id="agua-mesos" min="1" max="12" value="6" />
+        </div>
+        <div class="form-row">
+          <label>Consum base mensual (m³)</label>
+          <input type="number" id="agua-base" value="45" />
+        </div>
+        <div class="form-row">
+          <label>Increment estiu (%)</label>
+          <input type="number" id="agua-estiu" value="15" />
+        </div>
+        <button class="btn-calc" onclick="calcAigua()">Calcular</button>
+        <div class="calc-result" id="res-agua">
+          <div class="res-label">Consum estimat</div>
+          <div class="res-value" id="res-agua-val">—</div>
+          <div class="res-sub" id="res-agua-sub"></div>
+        </div>
+      </div>
+
+      <!-- CONSUMIBLES OFICINA -->
+      <div class="calc-card">
+        <h3><span class="icon">📄</span> Consumibles d'Oficina</h3>
+        <div class="form-row">
+          <label>Tipus de càlcul</label>
+          <select id="cons-tipus">
+            <option value="anual">Pròxim any complet</option>
+            <option value="curs">Curs escolar (Set–Jun)</option>
+            <option value="periode">Període personalitzat</option>
+          </select>
+        </div>
+        <div class="form-row" id="cons-mesos-wrap" style="display:none">
+          <label>Nombre de mesos</label>
+          <input type="number" id="cons-mesos" min="1" max="12" value="6" />
+        </div>
+        <div class="form-row">
+          <label>Despesa base mensual (€)</label>
+          <input type="number" id="cons-base" value="269" />
+        </div>
+        <div class="form-row">
+          <label>Increment mesos d'alta activitat (%)</label>
+          <input type="number" id="cons-act" value="25" />
+        </div>
+        <button class="btn-calc" onclick="calcConsumibles()">Calcular</button>
+        <div class="calc-result" id="res-cons">
+          <div class="res-label">Despesa estimada</div>
+          <div class="res-value" id="res-cons-val">—</div>
+          <div class="res-sub" id="res-cons-sub"></div>
+        </div>
+      </div>
+
+      <!-- NETEJA -->
+      <div class="calc-card">
+        <h3><span class="icon">🧹</span> Productes de Neteja</h3>
+        <div class="form-row">
+          <label>Tipus de càlcul</label>
+          <select id="net-tipus">
+            <option value="anual">Pròxim any complet</option>
+            <option value="curs">Curs escolar (Set–Jun)</option>
+            <option value="periode">Període personalitzat</option>
+          </select>
+        </div>
+        <div class="form-row" id="net-mesos-wrap" style="display:none">
+          <label>Nombre de mesos</label>
+          <input type="number" id="net-mesos" min="1" max="12" value="6" />
+        </div>
+        <div class="form-row">
+          <label>Despesa base mensual (€)</label>
+          <input type="number" id="net-base" value="100" />
+        </div>
+        <div class="form-row">
+          <label>Factor estacionalitat (%)</label>
+          <input type="number" id="net-est" value="10" />
+        </div>
+        <button class="btn-calc" onclick="calcNeteja()">Calcular</button>
+        <div class="calc-result" id="res-net">
+          <div class="res-label">Despesa estimada</div>
+          <div class="res-value" id="res-net-val">—</div>
+          <div class="res-sub" id="res-net-sub"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RESUM GLOBAL -->
+    <div class="chart-card">
+      <h3>Resum anual estimat · Projecció amb estacionalitat</h3>
+      <div class="chart-wrap" style="height:300px; margin-top:1rem">
+        <canvas id="chartProjections"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PLA REDUCCIÓ ═══════════════ -->
+  <section id="pla" class="section">
+    <div class="section-header">
+      <h1>Pla de <span>Reducció 30%</span></h1>
+      <p>Quines accions reals poden reduir un 30% l'impacte ambiental del centre en 3 anys? Cronograma, indicadors i economia circular.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-label">Estalvi energètic objectiu</div>
+        <div class="kpi-value">302<span class="kpi-unit">kWh/mes</span></div>
+        <div class="kpi-delta good">30% dels 1.007 kWh/mes</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Estalvi econòmic objectiu</div>
+        <div class="kpi-value">1.790<span class="kpi-unit">€/any</span></div>
+        <div class="kpi-delta good">30% de 5.965€ facturat</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">CO₂ addicional evitat</div>
+        <div class="kpi-value">+0,14<span class="kpi-unit">t/mes</span></div>
+        <div class="kpi-delta good">Amb estalvi + solar</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Durada del pla</div>
+        <div class="kpi-value">3<span class="kpi-unit">anys</span></div>
+        <div class="kpi-delta">2025 → 2028</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="plan-timeline">
+          <div class="plan-year">
+            <h4>Any 1 · 2025–2026 · Objectiu: -10%</h4>
+            <div class="plan-actions">
+              <div class="plan-action">
+                <div class="a-icon">🔌</div>
+                <div>
+                  <div class="a-title">Auditar equips en standby</div>
+                  <div class="a-desc">Inventari energètic de totes les aules. Configurar polítiques d'apagat automàtic. Estalvi estimat: 80 kWh/mes.</div>
                 </div>
-        </section>
-
-        <section class="card">
-            <h2>💡 Simulador de Ahorro y Eficiencia</h2>
-            <div class="calc-layout">
-                <div class="input-group">
-                    <label>Coste Energía (€/kWh):</label>
-                    <input type="number" id="energy-price" value="0.15" step="0.01">
+                <div class="a-saving">-8%</div>
+              </div>
+              <div class="plan-action">
+                <div class="a-icon">💡</div>
+                <div>
+                  <div class="a-title">LED + sensors de presència</div>
+                  <div class="a-desc">Substituir il·luminació fluorescent per LED d'alta eficiència amb sensors a zones de pas. Estalvi: 50 kWh/mes.</div>
                 </div>
-                <button onclick="runAudit()">Ejecutar Auditoría</button>
+                <div class="a-saving">-5%</div>
+              </div>
+              <div class="plan-action">
+                <div class="a-icon">📄</div>
+                <div>
+                  <div class="a-title">Política "Paper Zero"</div>
+                  <div class="a-desc">Digitalitzar formularis, actes i comunicats. Compra de paper centralitzada i auditada mensualment.</div>
+                </div>
+                <div class="a-saving">-50% paper</div>
+              </div>
             </div>
-            <div id="audit-results" class="results-area"></div>
-        </section>
+          </div>
 
-        <section class="card note-card">
-            <p><strong>Nota sobre suministros:</strong> Se han detectado referencias a facturas de agua en los metadatos (Aigua-image001, 002, 003), pero no hay registros numéricos en el dataset actual para procesar su coste.</p>
-        </section>
-    </main>
+          <div class="plan-year">
+            <h4>Any 2 · 2026–2027 · Objectiu: -20%</h4>
+            <div class="plan-actions">
+              <div class="plan-action">
+                <div class="a-icon">☀️</div>
+                <div>
+                  <div class="a-title">Ampliar instal·lació solar</div>
+                  <div class="a-desc">Incrementar capacitat PV en un 30%. Projectar autoconsum del 100% durant 8 mesos a l'any.</div>
+                </div>
+                <div class="a-saving">-15%</div>
+              </div>
+              <div class="plan-action">
+                <div class="a-icon">♻️</div>
+                <div>
+                  <div class="a-title">Programa RAEE intern</div>
+                  <div class="a-desc">Protocol de reparació i reutilització de hardware. "Segona Vida" per a equips amb +5 anys. Reduïr compra d'equips nous un 25%.</div>
+                </div>
+                <div class="a-saving">-25% RAEE</div>
+              </div>
+              <div class="plan-action">
+                <div class="a-icon">💧</div>
+                <div>
+                  <div class="a-title">Reutilització d'aigua grisa</div>
+                  <div class="a-desc">Instal·lar sistemes de recollida per regar jardí. Substituir sanitaris per models de doble descàrrega.</div>
+                </div>
+                <div class="a-saving">-20% aigua</div>
+              </div>
+            </div>
+          </div>
 
-    <script src="script.js"></script>
+          <div class="plan-year">
+            <h4>Any 3 · 2027–2028 · Objectiu: -30%</h4>
+            <div class="plan-actions">
+              <div class="plan-action">
+                <div class="a-icon">🎓</div>
+                <div>
+                  <div class="a-title">Cultura de sostenibilitat</div>
+                  <div class="a-desc">Formació obligatòria per a docents. Gamificació de l'estalvi energètic amb l'alumnat. Integració als projectes de ASIX.</div>
+                </div>
+                <div class="a-saving">-5%</div>
+              </div>
+              <div class="plan-action">
+                <div class="a-icon">📊</div>
+                <div>
+                  <div class="a-title">Dashboard de monitorització permanent</div>
+                  <div class="a-desc">Aquesta web com a eina viva: actualització mensual de dades reals. Publicació al web del centre per transparència.</div>
+                </div>
+                <div class="a-saving">Mesurable</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="chart-card" style="margin-bottom:1.5rem">
+          <h3>Projecció d'estalvi acumulat <small>3 anys</small></h3>
+          <div class="chart-wrap">
+            <canvas id="chartPla"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Recàlcul amb millores aplicades</h3>
+          <br>
+          <div class="progress-row">
+            <div class="progress-label">Energia (any 1)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:10%;background:var(--green)"></div></div>
+            <div class="progress-val">-10%</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">Energia (any 2)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:20%;background:var(--green)"></div></div>
+            <div class="progress-val">-20%</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">Energia (any 3)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:30%;background:var(--green)"></div></div>
+            <div class="progress-val">-30% ✓</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">Paper (any 1)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:50%;background:var(--amber)"></div></div>
+            <div class="progress-val">-50%</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">Aigua (any 2)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:20%;background:var(--blue)"></div></div>
+            <div class="progress-val">-20%</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">RAEE (any 2)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:25%;background:var(--blue)"></div></div>
+            <div class="progress-val">-25%</div>
+          </div>
+          <br>
+          <div style="background:rgba(45,255,122,.06);border:1px solid rgba(45,255,122,.2);border-radius:8px;padding:1rem;margin-top:.5rem">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:.25rem">Despesa total recalculada amb millores (any 3)</div>
+            <div style="font-family:var(--font-head);font-weight:800;font-size:1.6rem;color:var(--green)">4.175,50 €</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">vs 5.965,75€ actuals · Estalvi de 1.790,25€/any</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Institut Tecnològic de Barcelona · Projecte TA08 · CFGS ASIX · Curs 25/26 · Dades: ITB Leaks · <a href="#">GitHub</a></p>
+  <p style="margin-top:.25rem">Llicència CC-BY 4.0 · javier.amaya@itb.cat · meritxell.durany@itb.cat</p>
+</footer>
+
+<script>
+/* ══════════════════════════════════════
+   DATA
+══════════════════════════════════════ */
+const DATA = {
+  energia: [
+    {data:"2025-01-01",pv:42.56,sc:93.84,co2:0.02},
+    {data:"2025-01-02",pv:48.86,sc:92.98,co2:0.02},
+    {data:"2025-01-03",pv:36.48,sc:99.40,co2:0.02},
+    {data:"2025-01-04",pv:44.18,sc:99.03,co2:0.02},
+    {data:"2025-01-05",pv:41.99,sc:99.67,co2:0.02},
+    {data:"2025-01-06",pv:40.55,sc:93.51,co2:0.02},
+    {data:"2025-01-07",pv:53.26,sc:96.43,co2:0.03},
+    {data:"2025-01-08",pv:47.81,sc:100.00,co2:0.02},
+    {data:"2025-01-09",pv:52.03,sc:100.00,co2:0.03},
+    {data:"2025-01-10",pv:49.33,sc:100.00,co2:0.02},
+    {data:"2025-01-11",pv:40.03,sc:96.28,co2:0.02},
+    {data:"2025-01-12",pv:57.00,sc:96.72,co2:0.03},
+    {data:"2025-01-13",pv:55.89,sc:100.00,co2:0.03},
+    {data:"2025-01-14",pv:57.49,sc:100.00,co2:0.03},
+    {data:"2025-01-15",pv:55.58,sc:100.00,co2:0.03},
+    {data:"2025-01-16",pv:40.94,sc:100.00,co2:0.02},
+    {data:"2025-01-17",pv:52.90,sc:100.00,co2:0.03},
+    {data:"2025-01-18",pv:56.17,sc:94.36,co2:0.03},
+    {data:"2025-01-19",pv:35.53,sc:99.44,co2:0.02},
+    {data:"2025-01-20",pv:32.00,sc:100.00,co2:0.02},
+    {data:"2025-01-21",pv:30.24,sc:100.00,co2:0.01},
+    {data:"2025-01-22",pv:5.87,sc:100.00,co2:0.00}
+  ],
+  factures: [
+    {data:"2024-09-13",producte:"SERVEIS EXTRAORDINARIS - Treballs en ferro i fusta",categoria:"Manteniment",preu:575.00,total:1012.98,iva:21},
+    {data:"2024-07-05",producte:"SERVEI D'URGÈNCIA - Reparació compressor",categoria:"Manteniment",preu:288.00,total:348.48,iva:21},
+    {data:"2024-05-23",producte:"SERVEIS EXTRAORDINARIS - Eliminar circuits obsolets QGP",categoria:"Manteniment",preu:2105.80,total:2548.02,iva:21},
+    {data:"2024-06-20",producte:"Paper secamanos, sacs industrials, bosses escombraries",categoria:"Neteja",preu:620.05,total:750.26,iva:21},
+    {data:"2024-05-27",producte:"Neteja jardí, patis, transport deixalleria",categoria:"Neteja",preu:375.80,total:454.72,iva:21},
+    {data:null,producte:"Fibra 1Gb - DIGI",categoria:"Telecomunicacions",preu:24.79,total:30.00,iva:21},
+    {data:"2024-03-04",producte:"Fibra 1Gb i Mòbil 200GB - O2",categoria:"Telecomunicacions",preu:41.32,total:50.00,iva:21},
+    {data:"2024-06-30",producte:"RECAMBIO MARCADOR PIZARRA BLANCA NEGRO (×40)",categoria:"Material Oficina",preu:0.71,total:34.36,iva:21},
+    {data:"2024-10-31",producte:"PAPEL NAVIGATOR UNIVERSAL A4 80G (×30)",categoria:"Material Oficina",preu:5.47,total:198.56,iva:21},
+    {data:"2024-04-30",producte:"Material oficina - marcadors, paper, borrador",categoria:"Material Oficina",preu:229.03,total:277.13,iva:21},
+    {data:"2024-05-31",producte:"Material oficina - marcadors i paper",categoria:"Material Oficina",preu:215.90,total:261.24,iva:21}
+  ],
+  mobils: [
+    {data:"2024-11-15",grup:"ASIXc1A",mobils:3,alumnat:20,pct:15.00},
+    {data:"2024-11-21",grup:"ASIXc1A",mobils:7,alumnat:19,pct:36.84},
+    {data:"2024-11-22",grup:"ASIXc1A",mobils:5,alumnat:21,pct:23.81},
+    {data:"2024-11-28",grup:"ASIXc1A",mobils:6,alumnat:19,pct:31.58},
+    {data:"2024-11-29",grup:"ASIXc1A",mobils:5,alumnat:22,pct:22.73},
+    {data:"2024-12-12",grup:"ASIXc1A",mobils:3.5,alumnat:19,pct:18.42},
+    {data:"2024-12-13",grup:"ASIXc1A",mobils:11,alumnat:19,pct:57.89},
+    {data:"2024-12-19",grup:"ASIXc1A",mobils:9.5,alumnat:18,pct:52.78},
+    {data:"2025-01-09",grup:"ASIXc1A",mobils:9,alumnat:20,pct:45.00},
+    {data:"2025-01-16",grup:"ASIXc1A",mobils:8,alumnat:18,pct:44.44},
+    {data:"2025-01-17",grup:"ASIXc1A",mobils:7,alumnat:19,pct:36.84},
+    {data:"2024-11-16",grup:"ASIXc1B",mobils:6,alumnat:21,pct:28.57},
+    {data:"2024-11-22",grup:"ASIXc1B",mobils:3,alumnat:20,pct:15.00},
+    {data:"2024-11-26",grup:"ASIXc1B",mobils:2.5,alumnat:20,pct:12.50},
+    {data:"2024-11-29",grup:"ASIXc1B",mobils:4,alumnat:21,pct:19.05},
+    {data:"2024-12-03",grup:"ASIXc1B",mobils:1,alumnat:21,pct:4.76},
+    {data:"2024-12-10",grup:"ASIXc1B",mobils:3,alumnat:17,pct:17.65},
+    {data:"2024-12-13",grup:"ASIXc1B",mobils:6.5,alumnat:19,pct:34.21},
+    {data:"2024-12-17",grup:"ASIXc1B",mobils:4,alumnat:17,pct:23.53},
+    {data:"2025-01-14",grup:"ASIXc1B",mobils:3,alumnat:18,pct:16.67},
+    {data:"2025-01-17",grup:"ASIXc1B",mobils:4,alumnat:17,pct:23.53},
+    {data:"2024-11-18",grup:"ASIXc1C",mobils:11,alumnat:18,pct:61.11},
+    {data:"2024-11-19",grup:"ASIXc1C",mobils:6,alumnat:19,pct:31.58},
+    {data:"2024-11-25",grup:"ASIXc1C",mobils:3.5,alumnat:18,pct:19.44},
+    {data:"2024-11-26",grup:"ASIXc1C",mobils:14.5,alumnat:18,pct:80.56},
+    {data:"2024-12-02",grup:"ASIXc1C",mobils:8,alumnat:18,pct:44.44},
+    {data:"2024-12-03",grup:"ASIXc1C",mobils:6,alumnat:16,pct:37.50},
+    {data:"2024-12-09",grup:"ASIXc1C",mobils:3.5,alumnat:15,pct:23.33},
+    {data:"2024-12-10",grup:"ASIXc1C",mobils:6,alumnat:17,pct:35.29},
+    {data:"2024-12-16",grup:"ASIXc1C",mobils:2,alumnat:17,pct:11.76},
+    {data:"2024-12-17",grup:"ASIXc1C",mobils:5,alumnat:15,pct:33.33},
+    {data:"2025-01-13",grup:"ASIXc1C",mobils:5,alumnat:13,pct:38.46},
+    {data:"2025-01-14",grup:"ASIXc1C",mobils:11,alumnat:18,pct:61.11},
+    {data:"2025-01-20",grup:"ASIXc1C",mobils:11,alumnat:16,pct:68.75}
+  ]
+};
+
+/* ── CHART DEFAULTS ── */
+Chart.defaults.color = '#5a7a64';
+Chart.defaults.borderColor = '#1e3028';
+Chart.defaults.font.family = "'Space Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const chartInstances = {};
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+/* ══════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════ */
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => {
+    if (b.getAttribute('onclick').includes(id)) b.classList.add('active');
+  });
+  renderCharts(id);
+}
+
+/* ══════════════════════════════════════
+   CHARTS
+══════════════════════════════════════ */
+function renderCharts(tab) {
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'energia')   renderEnergia();
+  if (tab === 'mobils')    renderMobils();
+  if (tab === 'pla')       renderPla();
+  if (tab === 'calculadora') renderProjections();
+}
+
+function renderDashboard() {
+  // Chart energia
+  destroyChart('chartEnergia');
+  chartInstances['chartEnergia'] = new Chart(document.getElementById('chartEnergia'), {
+    type: 'bar',
+    data: {
+      labels: DATA.energia.map(d => d.data.slice(5)),
+      datasets: [{
+        label: 'kWh', data: DATA.energia.map(d => d.pv),
+        backgroundColor: 'rgba(45,255,122,.5)',
+        borderColor: '#2dff7a', borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{color:'rgba(30,48,40,.4)'}}, y:{grid:{color:'rgba(30,48,40,.4)'}} } }
+  });
+
+  // Chart autoconsum
+  destroyChart('chartAutoconsum');
+  chartInstances['chartAutoconsum'] = new Chart(document.getElementById('chartAutoconsum'), {
+    type: 'line',
+    data: {
+      labels: DATA.energia.map(d => d.data.slice(5)),
+      datasets: [{
+        label: '%', data: DATA.energia.map(d => d.sc),
+        borderColor: '#4dc9ff', backgroundColor: 'rgba(77,201,255,.1)',
+        fill: true, tension: 0.4, pointRadius: 3
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{color:'rgba(30,48,40,.4)'}}, y:{min:88, grid:{color:'rgba(30,48,40,.4)'}} } }
+  });
+
+  // Chart despeses donut
+  destroyChart('chartDespeses');
+  chartInstances['chartDespeses'] = new Chart(document.getElementById('chartDespeses'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Manteniment','Neteja','Material Oficina','Telecomunicacions'],
+      datasets: [{
+        data: [3909.48, 1204.98, 771.29, 80.00],
+        backgroundColor: ['rgba(255,77,109,.7)','rgba(245,200,66,.7)','rgba(45,255,122,.7)','rgba(77,201,255,.7)'],
+        borderColor: '#0e1612', borderWidth: 2
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend: { position:'right', labels:{ color:'#d4eed9' } } }
+    }
+  });
+}
+
+function renderEnergia() {
+  // Taula
+  const tbody = document.querySelector('#tablaEnergia tbody');
+  tbody.innerHTML = '';
+  DATA.energia.forEach(d => {
+    const cls = d.sc === 100 ? 'tag-green' : d.sc >= 95 ? 'tag-amber' : 'tag-red';
+    const lbl = d.sc === 100 ? '100% Autoconsum' : d.sc >= 95 ? 'Molt alt' : 'Alt';
+    tbody.innerHTML += `<tr>
+      <td>${d.data}</td>
+      <td style="color:#2dff7a;font-weight:700">${d.pv.toFixed(2)}</td>
+      <td>${d.sc.toFixed(2)}%</td>
+      <td>${d.co2.toFixed(2)}</td>
+      <td><span class="tag ${cls}">${lbl}</span></td>
+    </tr>`;
+  });
+
+  destroyChart('chartEnergiaDetall');
+  chartInstances['chartEnergiaDetall'] = new Chart(document.getElementById('chartEnergiaDetall'), {
+    type: 'bar',
+    data: {
+      labels: DATA.energia.map(d => d.data.slice(5)),
+      datasets: [
+        { label:'PV Yield (kWh)', data: DATA.energia.map(d=>d.pv),
+          backgroundColor:'rgba(45,255,122,.5)', borderColor:'#2dff7a', borderWidth:1, borderRadius:4, yAxisID:'y' },
+        { label:'Autoconsum (%)', data: DATA.energia.map(d=>d.sc),
+          type:'line', borderColor:'#f5c842', backgroundColor:'transparent',
+          tension:.4, pointRadius:3, yAxisID:'y1' }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      scales: {
+        x:{ grid:{color:'rgba(30,48,40,.4)'} },
+        y:{ grid:{color:'rgba(30,48,40,.4)'}, title:{display:true,text:'kWh',color:'#5a7a64'} },
+        y1:{ position:'right', min:85, max:102, grid:{display:false}, title:{display:true,text:'%',color:'#5a7a64'} }
+      }
+    }
+  });
+}
+
+function renderMobils() {
+  // Taula
+  const tbody = document.querySelector('#tablaMobils tbody');
+  tbody.innerHTML = '';
+  DATA.mobils.forEach(d => {
+    const cls = d.pct <= 20 ? 'tag-green' : d.pct <= 40 ? 'tag-amber' : 'tag-red';
+    const lbl = d.pct <= 20 ? 'Acceptable' : d.pct <= 40 ? 'Elevat' : 'Crític';
+    tbody.innerHTML += `<tr>
+      <td>${d.data}</td>
+      <td style="color:#4dc9ff">${d.grup}</td>
+      <td>${d.mobils}</td>
+      <td>${d.alumnat}</td>
+      <td style="font-weight:700">${d.pct.toFixed(2)}%</td>
+      <td><span class="tag ${cls}">${lbl}</span></td>
+    </tr>`;
+  });
+
+  // Mitjana per grup
+  const grups = ['ASIXc1A','ASIXc1B','ASIXc1C'];
+  const mitjanes = grups.map(g => {
+    const vals = DATA.mobils.filter(m=>m.grup===g).map(m=>m.pct);
+    return (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2);
+  });
+
+  destroyChart('chartMobilsGrup');
+  chartInstances['chartMobilsGrup'] = new Chart(document.getElementById('chartMobilsGrup'), {
+    type:'bar',
+    data:{
+      labels: grups,
+      datasets:[{
+        label:'Mitjana %',
+        data: mitjanes,
+        backgroundColor:['rgba(255,77,109,.6)','rgba(45,255,122,.6)','rgba(245,200,66,.6)'],
+        borderColor:['#ff4d6d','#2dff7a','#f5c842'], borderWidth:2, borderRadius:8
+      },{
+        label:'Objectiu 20%',
+        data:[20,20,20], type:'line',
+        borderColor:'rgba(255,255,255,.3)', borderDash:[5,5],
+        pointRadius:0, backgroundColor:'transparent'
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{grid:{color:'rgba(30,48,40,.4)'}},y:{max:50,grid:{color:'rgba(30,48,40,.4)'}}}
+    }
+  });
+
+  // Temporal
+  const sorted = [...DATA.mobils].sort((a,b)=>a.data.localeCompare(b.data));
+  const colors = {'ASIXc1A':'#ff4d6d','ASIXc1B':'#2dff7a','ASIXc1C':'#f5c842'};
+  const datasets = grups.map(g => ({
+    label: g,
+    data: sorted.filter(m=>m.grup===g).map(m=>({x:m.data,y:m.pct})),
+    borderColor: colors[g], backgroundColor:'transparent',
+    tension:.3, pointRadius:4
+  }));
+
+  destroyChart('chartMobilsTemporal');
+  chartInstances['chartMobilsTemporal'] = new Chart(document.getElementById('chartMobilsTemporal'), {
+    type:'line',
+    data:{ datasets },
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{type:'category',grid:{color:'rgba(30,48,40,.4)'}},
+        y:{grid:{color:'rgba(30,48,40,.4)'}}
+      },
+      plugins:{legend:{labels:{color:'#d4eed9'}}}
+    }
+  });
+}
+
+function renderPla() {
+  destroyChart('chartPla');
+  chartInstances['chartPla'] = new Chart(document.getElementById('chartPla'), {
+    type:'line',
+    data:{
+      labels:['Inici','Any 1 (2026)','Any 2 (2027)','Any 3 (2028)'],
+      datasets:[
+        { label:'Consum Energia (kWh/mes)',
+          data:[1007,906,806,705], borderColor:'#ff4d6d',
+          backgroundColor:'rgba(255,77,109,.1)', fill:true, tension:.4 },
+        { label:'Despesa Total (€/mes)',
+          data:[497,450,400,348], borderColor:'#f5c842',
+          backgroundColor:'rgba(245,200,66,.1)', fill:true, tension:.4 },
+        { label:'CO₂ Evitat (kg/mes)',
+          data:[22,30,40,50], borderColor:'#2dff7a',
+          backgroundColor:'rgba(45,255,122,.1)', fill:true, tension:.4 }
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#d4eed9'}}},
+      scales:{x:{grid:{color:'rgba(30,48,40,.4)'}},y:{grid:{color:'rgba(30,48,40,.4)'}}}
+    }
+  });
+}
+
+function renderProjections() {
+  destroyChart('chartProjections');
+  const months = ['Gen','Feb','Mar','Abr','Mai','Jun','Jul','Ago','Set','Oct','Nov','Des'];
+  const seasonal = [1.2,1.1,1.0,0.9,0.85,0.8,0.75,0.8,1.0,1.1,1.15,1.25];
+  const baseElec = 1007;
+  chartInstances['chartProjections'] = new Chart(document.getElementById('chartProjections'), {
+    type:'bar',
+    data:{
+      labels: months,
+      datasets:[{
+        label:'Consum Elèctric estimat (kWh)',
+        data: seasonal.map(s=>Math.round(baseElec*s)),
+        backgroundColor:'rgba(45,255,122,.4)', borderColor:'#2dff7a', borderRadius:6, borderWidth:1
+      },{
+        label:'Objectiu -30% (kWh)',
+        data: seasonal.map(s=>Math.round(baseElec*s*0.7)),
+        backgroundColor:'rgba(77,201,255,.3)', borderColor:'#4dc9ff', borderRadius:6, borderWidth:1
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#d4eed9'}}},
+      scales:{x:{grid:{color:'rgba(30,48,40,.4)'}},y:{grid:{color:'rgba(30,48,40,.4)'}}}
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   TABLE: FACTURES
+══════════════════════════════════════ */
+function renderFactures() {
+  const tbody = document.querySelector('#tablaFactures tbody');
+  tbody.innerHTML = '';
+  const cats = {'Manteniment':'tag-red','Neteja':'tag-amber','Material Oficina':'tag-green','Telecomunicacions':'tag-green'};
+  DATA.factures.forEach(f => {
+    tbody.innerHTML += `<tr>
+      <td>${f.data||'—'}</td>
+      <td>${f.producte}</td>
+      <td><span class="tag ${cats[f.categoria]||'tag-green'}">${f.categoria}</span></td>
+      <td>${f.preu.toFixed(2)} €</td>
+      <td style="font-weight:700;color:#f5c842">${f.total.toFixed(2)} €</td>
+      <td>${f.iva}%</td>
+    </tr>`;
+  });
+}
+
+/* ══════════════════════════════════════
+   CALCULADORA FUNCTIONS
+══════════════════════════════════════ */
+const SEASONAL_ELEC = [1.20,1.10,1.00,0.90,0.85,0.80,0.75,0.80,1.00,1.10,1.15,1.25];
+const SEASONAL_AGUA = [0.80,0.80,0.90,1.00,1.10,1.20,1.30,1.25,1.05,0.95,0.85,0.80];
+const SCHOOL_MONTHS = [0,1,2,3,4,8,9,10,11]; // set-jun (0-based)
+
+function getMesos(prefix) {
+  const t = document.getElementById(`${prefix}-tipus`).value;
+  const wrap = document.getElementById(`${prefix}-mesos-wrap`);
+  if (t === 'anual') { wrap.style.display='none'; return {count:12, months:[0,1,2,3,4,5,6,7,8,9,10,11]}; }
+  if (t === 'curs')  { wrap.style.display='none'; return {count:10, months:SCHOOL_MONTHS}; }
+  wrap.style.display='block';
+  const n = parseInt(document.getElementById(`${prefix}-mesos`).value)||1;
+  return {count:n, months:Array.from({length:n},(_,i)=>i)};
+}
+
+document.querySelectorAll('select[id$="-tipus"]').forEach(sel => {
+  sel.addEventListener('change', () => {
+    const prefix = sel.id.replace('-tipus','');
+    const wrap = document.getElementById(`${prefix}-mesos-wrap`);
+    wrap.style.display = sel.value==='periode' ? 'block' : 'none';
+  });
+});
+
+function showResult(id, val, unit, sub) {
+  const el = document.getElementById('res-'+id);
+  el.classList.add('show');
+  document.getElementById('res-'+id+'-val').textContent = val + ' ' + unit;
+  document.getElementById('res-'+id+'-sub').textContent = sub;
+}
+
+function calcElectric() {
+  const base = parseFloat(document.getElementById('elec-base').value)||1007;
+  const hiv  = parseFloat(document.getElementById('elec-hiv').value)||20;
+  const {months} = getMesos('elec');
+  let total = 0;
+  months.forEach(m => { total += base * SEASONAL_ELEC[m] * (1 + (m>=9||m<=1?hiv/100:0)); });
+  showResult('elec', Math.round(total).toLocaleString('ca'), 'kWh',
+    `Amb estacionalitat hivern +${hiv}%. Equivalent a ~${(total*0.15).toFixed(0)} € (tarifa 0,15€/kWh)`);
+}
+
+function calcAigua() {
+  const base = parseFloat(document.getElementById('agua-base').value)||45;
+  const est  = parseFloat(document.getElementById('agua-estiu').value)||15;
+  const {months} = getMesos('agua');
+  let total = 0;
+  months.forEach(m => { total += base * SEASONAL_AGUA[m] * (1 + (m>=5&&m<=7?est/100:0)); });
+  showResult('agua', total.toFixed(1), 'm³',
+    `Amb cicle estacional. Equivalent a ~${(total*1.8).toFixed(0)} € (tarifa est. 1,80€/m³)`);
+}
+
+function calcConsumibles() {
+  const base = parseFloat(document.getElementById('cons-base').value)||269;
+  const act  = parseFloat(document.getElementById('cons-act').value)||25;
+  const {months} = getMesos('cons');
+  const highActivity = [1,2,3,9,10]; // febr,març,abr,oct,nov
+  let total = 0;
+  months.forEach(m => { total += base * (1 + (highActivity.includes(m)?act/100:0)); });
+  showResult('cons', total.toFixed(2), '€',
+    `Mesos alta activitat escolar amb +${act}% de consum`);
+}
+
+function calcNeteja() {
+  const base = parseFloat(document.getElementById('net-base').value)||100;
+  const est  = parseFloat(document.getElementById('net-est').value)||10;
+  const {months} = getMesos('net');
+  let total = 0;
+  months.forEach(m => { total += base * (1 + est/100 * Math.sin((m+1)*Math.PI/12)); });
+  showResult('net', total.toFixed(2), '€',
+    `Amb variabilitat estacional suau (±${est}%)`);
+}
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+window.addEventListener('load', () => {
+  renderDashboard();
+  renderFactures();
+});
+</script>
 </body>
 </html>
