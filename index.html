@@ -3,49 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITB Leaks - Calculadora Energética</title>
+    <title>ITB Leaks - Auditoría Global de Gastos</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>ITB Leaks: Panel de Eficiencia</h1>
-        <p>Análisis de datos y optimización de recursos</p>
+        <h1>ITB Leaks: Auditoría de Gastos 2024-2025</h1>
+        <p>Análisis integral de consumos, suministros y mantenimiento</p>
     </header>
 
     <main class="container">
-        <section id="stats" class="card">
-            <h2>📊 Resumen de Datos Actuales</h2>
-            <div class="grid-stats">
-                <div class="stat-item">
-                    <span>Producción Solar Total</span>
-                    <strong id="prod-total">1006.81 kWh</strong>
-                </div>
-                <div class="stat-item">
-                    <span>Autoconsumo Medio</span>
-                    <strong id="auto-total">97.36%</strong>
-                </div>
-                <div class="stat-item">
-                    <span>Gasto Facturado</span>
-                    <strong id="gasto-total">5.965,75 €</strong>
-                </div>
+        <section class="grid-main-stats">
+            <div class="card stat-highlight">
+                <h3>Gasto Total Auditado</h3>
+                <strong id="global-total">5.965,75 €</strong>
+            </div>
+            <div class="card stat-highlight">
+                <h3>Producción Solar</h3>
+                <strong id="solar-yield">1.006,81 kWh</strong>
+            </div>
+            <div class="card stat-highlight">
+                <h3>Autoconsumo</h3>
+                <strong id="auto-rate">97,36%</strong>
             </div>
         </section>
 
-        <section id="calculator" class="card">
-            <h2>💰 Calculadora de Ahorro</h2>
-            <div class="form-group">
-                <label for="price">Precio de la luz actual (€/kWh):</label>
-                <input type="number" id="price" value="0.15" step="0.01">
-            </div>
-            <button onclick="calculateSavings()">Calcular Impacto Económico</button>
-            <div id="results" class="results-box">
+        <section class="card">
+            <h2>📂 Distribución de Gastos por Partida</h2>
+            <div id="category-breakdown" class="category-grid">
                 </div>
         </section>
 
-        <section id="efficiency" class="card">
-            <h2>🌱 Plan de Mejora de Eficiencia</h2>
-            <ul id="tips-list">
-                </ul>
+        <section class="card">
+            <h2>💡 Simulador de Ahorro y Eficiencia</h2>
+            <div class="calc-layout">
+                <div class="input-group">
+                    <label>Coste Energía (€/kWh):</label>
+                    <input type="number" id="energy-price" value="0.15" step="0.01">
+                </div>
+                <button onclick="runAudit()">Ejecutar Auditoría</button>
+            </div>
+            <div id="audit-results" class="results-area"></div>
+        </section>
+
+        <section class="card note-card">
+            <p><strong>Nota sobre suministros:</strong> Se han detectado referencias a facturas de agua en los metadatos (Aigua-image001, 002, 003), pero no hay registros numéricos en el dataset actual para procesar su coste.</p>
         </section>
     </main>
 
